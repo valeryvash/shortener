@@ -12,27 +12,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/valeryvash/shortener/internal/handler"
 	hMocks "github.com/valeryvash/shortener/internal/handler/mocks"
+	"github.com/valeryvash/shortener/internal/service"
 )
 
-type serviceMock struct {
-	createShortAddr func(fullAddr string) (shortAddr string, err error)
-	getFullAddr     func(shortAddr string) (fullAddr string, err error)
-
-	CreateShortAddrArgs []string
-	GetFullAddrArgs     []string
-}
-
-func (s *serviceMock) CreateShortAddr(fullAddr string) (shortAddr string, err error) {
-	s.CreateShortAddrArgs = append(s.CreateShortAddrArgs, fullAddr)
-	return s.createShortAddr(fullAddr)
-}
-
-func (s *serviceMock) GetFullAddr(shortAddr string) (fullAddr string, err error) {
-	s.GetFullAddrArgs = append(s.GetFullAddrArgs, shortAddr)
-	return s.getFullAddr(fullAddr)
-}
-
-var _ handler.Service = (*serviceMock)(nil)
+var _ handler.Service = (*service.Service)(nil)
 
 func TestCreateHandler(t *testing.T) {
 
