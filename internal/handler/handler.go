@@ -4,6 +4,7 @@ import (
 	"net/http"
 )
 
+//go:generate mockery --name=Service --output=mocks --outpkg=mocks
 type Service interface {
 	CreateShortAddr(fullAddr string) (shortAddr string, err error)
 	GetFullAddr(shortAddr string) (fullAddr string, err error)
