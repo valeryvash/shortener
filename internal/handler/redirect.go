@@ -1,21 +1,27 @@
 package handler
 
-import "net/http"
+import (
+	"net/http"
+	"unicode/utf8"
 
-func (h *Handler) RedirectHandler(w http.ResponseWriter, r *http.Request) {
-	path := []rune(r.URL.Path)
-	if len(path) != 9 {
-		w.WriteHeader(http.StatusBadRequest)
+	"github.com/gin-gonic/gin"
+)
+
+func (h *Handler) RedirectHandlerGIN(c *gin.Context) {
+	shortAddr := c.Param("shortAddr")
+	if utf8.RuneCountInString(shortAddr) != 8 {
+		errBadRequest(c)
 		return
 	}
 
-	path = path[1:]
-	fullAddr, err := h.service.GetFullAddr(string(path))
+	fullAddr, err := h.service.GetFullAddr(shortAddr)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
+		errBadRequest(c)
 		return
 	}
 
-	w.Header().Add("Location", fullAddr)
-	w.WriteHeader(http.StatusTemporaryRedirect)
+	// c.Header("Location", fullAddr)
+	// c.String(http.StatusTemporaryRedirect, "")
+	// or just
+	c.Redirect(http.StatusTemporaryRedirect, fullAddr)
 }

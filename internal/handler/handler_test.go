@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/valeryvash/shortener/internal/handler"
@@ -18,6 +19,7 @@ import (
 var _ handler.Service = (*service.Service)(nil)
 
 func TestCreateHandler(t *testing.T) {
+	gin.SetMode(gin.TestMode)
 
 	type want struct {
 		code        int
@@ -61,7 +63,7 @@ func TestCreateHandler(t *testing.T) {
 			want: want{
 				code:        400,
 				response:    "",
-				contentType: "",
+				contentType: "text/plain",
 			},
 		},
 	}
@@ -73,7 +75,10 @@ func TestCreateHandler(t *testing.T) {
 
 			h := handler.NewHandler(tc.service())
 
-			h.CreateHandler(w, r)
+			e := gin.New()
+			h.RegisterRoutesGIN(e)
+
+			e.ServeHTTP(w, r)
 
 			body, err := io.ReadAll(w.Result().Body)
 			defer w.Result().Body.Close()
@@ -82,7 +87,9 @@ func TestCreateHandler(t *testing.T) {
 
 			require.Equal(t, tc.want.code, w.Result().StatusCode)
 
-			require.Equal(t, tc.want.contentType, w.Result().Header.Get("Content-type"))
+			require.True(t,
+				strings.Contains(w.Result().Header.Get("Content-type"), tc.want.contentType),
+			)
 
 			require.Equal(t, tc.want.response, string(body))
 		})
@@ -158,7 +165,10 @@ func TestRedirectHandler(t *testing.T) {
 
 			h := handler.NewHandler(tc.service())
 
-			h.RedirectHandler(w, r)
+			e := gin.New()
+			h.RegisterRoutesGIN(e)
+
+			e.ServeHTTP(w, r)
 
 			require.Equal(t, tc.want.code, w.Result().StatusCode)
 
