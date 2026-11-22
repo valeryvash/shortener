@@ -2,26 +2,33 @@ package handler
 
 import (
 	"net/http"
-	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
 )
 
+type RedirectPathParams struct {
+	ShortAddr string `uri:"shortAddr" binding:"required,len=8"`
+}
+
 func (h *Handler) RedirectHandlerGIN(c *gin.Context) {
-	shortAddr := c.Param("shortAddr")
-	if utf8.RuneCountInString(shortAddr) != 8 {
+	var (
+		redirectPathParams RedirectPathParams
+		fullAddress        string
+		err                error
+	)
+
+	if err = c.ShouldBindUri(&redirectPathParams); err != nil {
 		errBadRequest(c)
 		return
 	}
 
-	fullAddr, err := h.service.GetFullAddr(shortAddr)
-	if err != nil {
+	if fullAddress, err = h.service.GetFullAddr(redirectPathParams.ShortAddr); err != nil {
 		errBadRequest(c)
 		return
 	}
 
-	// c.Header("Location", fullAddr)
-	// c.String(http.StatusTemporaryRedirect, "")
-	// or just
-	c.Redirect(http.StatusTemporaryRedirect, fullAddr)
+	// c.Header("Location", fullAddress)
+	// c.Status(http.StatusTemporaryRedirect)
+	//or just
+	c.Redirect(http.StatusTemporaryRedirect, fullAddress)
 }

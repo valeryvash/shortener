@@ -13,11 +13,12 @@ type Service interface {
 }
 
 type Handler struct {
-	service Service
+	service      Service
+	redirectAddr string
 }
 
-func NewHandler(service Service) *Handler {
-	return &Handler{service: service}
+func NewHandler(service Service, redirectAddr string) *Handler {
+	return &Handler{service: service, redirectAddr: redirectAddr}
 }
 
 func (h *Handler) RegisterRoutesGIN(e *gin.Engine) {
@@ -29,5 +30,5 @@ func (h *Handler) RegisterRoutesGIN(e *gin.Engine) {
 }
 
 func errBadRequest(c *gin.Context) {
-	c.String(http.StatusBadRequest, "")
+	c.Status(http.StatusBadRequest)
 }

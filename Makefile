@@ -1,18 +1,22 @@
-.PHONY: statictest build test1 check clean
+.PHONY: statictest build test check clean
 
 statictest:
-	@go vet -vettool=$$(command -v statictest) ./...
+	STATIC_TEST=$$(command -v statictest); \
+	echo "Using STATIC_TEST: $$STATIC_TEST"; \
+	go vet -v -vettool=$$STATIC_TEST ./...
 
 build:
 	@go build -o ./cmd/shortener/shortener ./cmd/shortener/main.go
 
-test1:
-	@shortenertest -test.v -test.run=^TestIteration1$ -binary-path=cmd/shortener/shortener
+test_v2:
+	SERVER_PORT=$$(random unused-port); \
+	echo "Using port: $$SERVER_PORT"; \
+	shortenertest_v2 -test.v -test.run="^TestIteration[1-4]$$" \
+	-source-path=. \
+	-binary-path=cmd/shortener/shortener \
+	-server-port=$$SERVER_PORT
 
-test2:
-	@shortenertest -test.v -test.run=^TestIteration2$ -source-path=.
-
-check: statictest build test1
+check: statictest build test_v2 clean
 
 clean:
 	rm -f ./cmd/shortener/shortener

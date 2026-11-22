@@ -7,18 +7,24 @@ import (
 )
 
 func (h *Handler) CreateHandlerGIN(c *gin.Context) {
-	body, err := c.GetRawData()
-	if err != nil {
+	var (
+		body      string
+		shortAddr string
+		err       error
+	)
+
+	if err = c.ShouldBindPlain(&body); err != nil {
 		errBadRequest(c)
 		return
 	}
 
-	shortAddr, err := h.service.CreateShortAddr(string(body))
-	if err != nil {
+	if shortAddr, err = h.service.CreateShortAddr(body); err != nil {
 		errBadRequest(c)
 		return
 	}
-	
-	c.Header("Content-Type", "text/plain")
-	c.String(http.StatusCreated, "http://localhost:8080/"+string(shortAddr))
+
+	c.String(
+		http.StatusCreated,
+		"%s/%s", h.redirectAddr, shortAddr,
+	)
 }

@@ -2,6 +2,7 @@ package handler_test
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -16,7 +17,11 @@ import (
 	"github.com/valeryvash/shortener/internal/service"
 )
 
-var _ handler.Service = (*service.Service)(nil)
+var (
+	_ handler.Service = (*service.Service)(nil)
+	redirectAddress = "http://localhost:8080"
+)
+
 
 func TestCreateHandler(t *testing.T) {
 	gin.SetMode(gin.TestMode)
@@ -37,33 +42,33 @@ func TestCreateHandler(t *testing.T) {
 		{
 			name:        "succesfully created",
 			method:      http.MethodPost,
-			requestBody: "text",
+			requestBody: "http://redirect.me.here",
 			service: func() *hMocks.Service {
 				m := hMocks.Service{}
-				m.EXPECT().CreateShortAddr("text").Times(1).Return("abc123", nil)
+				m.EXPECT().CreateShortAddr("http://redirect.me.here").Times(1).Return("AbCd1234", nil)
 				m.EXPECT().GetFullAddr(mock.Anything).Times(0).Return("", nil)
 				return &m
 			},
 			want: want{
 				code:        201,
-				response:    "http://localhost:8080/abc123",
+				response:    fmt.Sprintf("%s/%s", redirectAddress, "AbCd1234"),
 				contentType: "text/plain",
 			},
 		},
 		{
 			name:        "error from service",
 			method:      http.MethodPost,
-			requestBody: "text",
+			requestBody: "http://provide.an.error",
 			service: func() *hMocks.Service {
 				m := hMocks.Service{}
-				m.EXPECT().CreateShortAddr(mock.Anything).Times(1).Return("", errors.New("service error"))
+				m.EXPECT().CreateShortAddr("http://provide.an.error").Times(1).Return("", errors.New("service error"))
 				m.EXPECT().GetFullAddr(mock.Anything).Times(0).Return("", nil)
 				return &m
 			},
 			want: want{
 				code:        400,
 				response:    "",
-				contentType: "text/plain",
+				contentType: "",
 			},
 		},
 	}
@@ -73,7 +78,7 @@ func TestCreateHandler(t *testing.T) {
 			r := httptest.NewRequest(tc.method, "/", strings.NewReader(tc.requestBody))
 			w := httptest.NewRecorder()
 
-			h := handler.NewHandler(tc.service())
+			h := handler.NewHandler(tc.service(), redirectAddress)
 
 			e := gin.New()
 			h.RegisterRoutesGIN(e)
@@ -81,8 +86,6 @@ func TestCreateHandler(t *testing.T) {
 			e.ServeHTTP(w, r)
 
 			body, err := io.ReadAll(w.Result().Body)
-			defer w.Result().Body.Close()
-
 			require.NoError(t, err)
 
 			require.Equal(t, tc.want.code, w.Result().StatusCode)
@@ -97,6 +100,7 @@ func TestCreateHandler(t *testing.T) {
 }
 
 func TestRedirectHandler(t *testing.T) {
+	gin.SetMode(gin.TestMode)
 
 	type want struct {
 		code     int
@@ -118,27 +122,12 @@ func TestRedirectHandler(t *testing.T) {
 			service: func() *hMocks.Service {
 				m := hMocks.Service{}
 				m.EXPECT().CreateShortAddr(mock.Anything).Times(0).Return("", nil)
-				m.EXPECT().GetFullAddr("12345678").Times(1).Return("http://ya.ru", nil)
+				m.EXPECT().GetFullAddr("12345678").Times(1).Return("http://wanted.redirect.ad", nil)
 				return &m
 			},
 			want: want{
 				code:     307,
-				location: "http://ya.ru",
-			},
-		},
-		{
-			name:       "error from service",
-			method:     http.MethodGet,
-			requestURL: "/12345678",
-			service: func() *hMocks.Service {
-				m := hMocks.Service{}
-				m.EXPECT().CreateShortAddr(mock.Anything).Times(0).Return("", nil)
-				m.EXPECT().GetFullAddr(mock.Anything).Times(1).Return("", errors.New("error"))
-				return &m
-			},
-			want: want{
-				code:     400,
-				location: "",
+				location: "http://wanted.redirect.ad",
 			},
 		},
 		{
@@ -156,6 +145,22 @@ func TestRedirectHandler(t *testing.T) {
 				location: "",
 			},
 		},
+		{
+			name:       "error from service",
+			method:     http.MethodGet,
+			requestURL: "/12345678",
+			service: func() *hMocks.Service {
+				m := hMocks.Service{}
+				m.EXPECT().CreateShortAddr(mock.Anything).Times(0).Return("", nil)
+				m.EXPECT().GetFullAddr(mock.Anything).Times(1).Return("", errors.New("error"))
+				return &m
+			},
+			want: want{
+				code:     400,
+				location: "",
+			},
+		},
+
 	}
 
 	for _, tc := range tcs {
@@ -163,7 +168,7 @@ func TestRedirectHandler(t *testing.T) {
 			r := httptest.NewRequest(tc.method, tc.requestURL, nil)
 			w := httptest.NewRecorder()
 
-			h := handler.NewHandler(tc.service())
+			h := handler.NewHandler(tc.service(), redirectAddress)
 
 			e := gin.New()
 			h.RegisterRoutesGIN(e)
